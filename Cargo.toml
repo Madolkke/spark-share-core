@@ -1,0 +1,13 @@
+[package]
+name = "spark-share-core"
+version = "0.1.0"
+authors = ["Madolkke <madolchepalooza@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+p256 = { version = "*", features = ["ecdsa", "ecdsa-core"]}
+rand_core = { version = "*", features = ["getrandom"]}
+bs58 = "0.4.0"
+# ecdsa = { version = "0.10.1", features = ["sign", "verify"]}
