@@ -1,10 +1,10 @@
-
 use rand_core::OsRng;
 use p256::ecdsa::VerifyingKey;
 use p256::ecdsa::SigningKey;
-use crate::error::Error;
+use crate::error::{self, Error};
 use std::io::prelude::{Write, BufRead};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
+extern crate ecdsa;
 
 pub struct KeyManager{
     file_path: String,
@@ -13,14 +13,11 @@ pub struct KeyManager{
 }
 
 impl KeyManager{
+
     fn create_keypair() -> (SigningKey, VerifyingKey){
         let signing_key = SigningKey::random(&mut OsRng);
         let verifying_key = VerifyingKey::from(&signing_key);
         (signing_key, verifying_key)
-    }
-
-    fn new(path_str: &str) -> KeyManager{
-        unimplemented!()
     }
 
     pub fn new_current_dir(file_name: &str) -> Result<KeyManager, Error>{
@@ -51,19 +48,45 @@ impl KeyManager{
         }else{ return Err(Error::KeyManagerInvalidWorkingDirError); }
     }
 
-    fn from_path(path: Path) -> Result<KeyManager, Error>{
+    fn from_path(path: &Path) -> Result<KeyManager, Error>{
         if let Ok(file) = std::fs::File::open(path){
-            let buf_reader = std::io::BufReader::new(file);
-            let signing_key_string = String::new();
-            let verifying_key_string = String::new();
+            let mut buf_reader = std::io::BufReader::new(file);
+            let mut signing_key_bs58_string = String::new();
+            let mut verifying_key_bs58_string = String::new();
+            let sk_res = buf_reader.read_line(&mut signing_key_bs58_string)
+                .or_else(crate::util::std_io_error_pack)?;
+            let vk_res = buf_reader.read_line(&mut verifying_key_bs58_string)
+                .or_else(crate::util::std_io_error_pack)?;
+            if sk_res == 0 || vk_res == 0 { return Err(Error::KeyPairNotFoundInFileError)}
+            let mut sk_bytes = bs58::decode(signing_key_bs58_string.trim()).into_vec()
+                .or_else(|error|Err(Error::BS58DecodeError(error)))?;
+            let mut vk_bytes = bs58::decode(verifying_key_bs58_string.trim()).into_vec()
+                .or_else(|error|Err(Error::BS58DecodeError(error)))?;
+            let sk = SigningKey::from_bytes(&sk_bytes)
+                .or_else(|error|Err(Error::KeyPairFromBytesError(error)))?;
+            let vk = VerifyingKey::from_encoded_point(&ecdsa::EncodedPoint::from_bytes(&vk_bytes)
+                .or_else(|error|Err(Error::VKFromEncodedPointError(error)))?)
+                .or_else(|error|Err(Error::KeyPairFromBytesError(error)))?;
+            return Ok(KeyManager{
+                file_path: path.to_str().unwrap().to_string(),
+                signing_key: sk,
+                verifying_key: vk,
+            })
         }
-        Err(Error::KeyPairFileNotExistError);
+        Err(Error::KeyPairFileNotExistError)
     }
 
-    fn from_current_dir_checked(path_str: &str) -> KeyManager{
-        unimplemented!()
+    fn from_path_checked(path: &Path) -> Result<KeyManager, Error>{
+        let km = KeyManager::from_path(path)?;
+        if !crate::util::verify_keypair(&km.signing_key, &km.verifying_key) { return Err(Error::KeyPairVerifyFailError); }
+        return Ok(km);
     }
 
-
+    pub fn from_current_dir_checked(file_name: &str) -> Result<KeyManager, Error>{
+        let dir = std::env::current_dir()
+            .or_else(|error|Err(Error::KeyManagerInvalidWorkingDirError))?;
+        let path = dir.join(file_name);
+        KeyManager::from_path_checked(&path)
+    }
 
 }
