@@ -11,3 +11,4 @@ p256 = { version = "*", features = ["ecdsa", "ecdsa-core", "arithmetic"]}
 rand_core = { version = "*", features = ["getrandom"]}
 bs58 = "0.4.0"
 ecdsa = { version = "0.10.1", features = ["sign", "verify"]}
+sha3 = "0.9.1"

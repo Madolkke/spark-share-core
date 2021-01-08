@@ -6,7 +6,7 @@ mod resource;
 
 #[cfg(test)]
 mod tests {
-    use crate::{file::Size, key_manager};
+    use crate::{file::size::Size, key_manager};
 
     #[test]
     fn key_manager_generate_test() {
@@ -17,5 +17,7 @@ mod tests {
     fn size_convert_test() {
         let s = Size::new(1919810);
         println!("{:?}", s.each_1024());
+        println!("{:?}", s.float_by_scale(crate::file::SizeScale::MByte));
+        println!("{:?}", s.auto_float_by_scale());
     }
 }
